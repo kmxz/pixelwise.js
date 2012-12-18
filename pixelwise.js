@@ -11,9 +11,9 @@ xkong@ust.hk
 just fuck up canvas, no performance optimization
 */
 
-/****
+/***************
 constructors
-****/
+***************/
 
 /*
 @param canvas_el the canvas element
@@ -50,9 +50,9 @@ Pw.Mask = function(mode, source) {
     }
 }
 
-/****
+/***************
 interface
-****/
+***************/
 
 /*
 @param img image, either a Image object or a string of URL
@@ -80,7 +80,7 @@ Pw.prototype.loadImg = function(img, mode) {
 */
 Pw.prototype.applyNaiveFilter = function(filter, range) {
     var raw, opa, tdata;
-    if (range instanceof Pw.Mask) { //in this mode, we read and write pixels ONE BY ONE, which might be slow
+    if (range instanceof Pw.Mask) { //in this mode, we read and write pixels ONE BY ONE, which might be slow. If many pixels need to written, full filter is suggested
         for (var i = 0; i < this.w; i++) {
             for (var j = 0; j < this.h; j++) {
                 opa = range.func(i, j);
@@ -105,24 +105,59 @@ Pw.prototype.applyNaiveFilter = function(filter, range) {
     this.ctx.putImageData(tdata, range[0], range[1]);
 }
 
-/****
+/*
+@param filter the passive full filter function to be applied (take a coordinate and a ImageData object)
+@param range the range to apply the filter on, can be a Pw.Mask object, or undefined for full canvas
+@param init initialization function
+*/
+Pw.prototype.applyFullFilter = function(filter, range, init) {
+    var raw = this.ctx.getImageData(0, 0, this.w, this.h); 
+    var tdata = this.ctx.getImageData(0, 0, this.w, this.h);
+    var opa;
+    if (typeof init == 'function') { init(); }
+    for (var i = 0; i < this.w; i++) {
+        for (var j = 0; j < this.h; j++) {
+            opa = range ? range.func(i, j) : 1;
+            if (opa <= 0) { continue; }
+            tdata.write(Pw.mix.mix(filter(i, j, raw), raw.read(i,j), opa, Pw.MIXMODE.NORMAL), i, j);
+        }        
+    }
+    this.ctx.putImageData(tdata, 0, 0);
+}
+
+/***************
 modifying native objects
-****/
+***************/
 
 /*
 @param array the data to write
-@param offset = 0 from which point should we start writing
+@param offset/x if y is not set, this parameter become x, otherwise it's bytewise offset. if omitted, offset = 0.
+@param y
 */
-ImageData.prototype.write = function(array, offset) {
-    if (!(typeof offset == 'number')) { offset = 0; }
+ImageData.prototype.write = function(array, offset, y) {
+    if (typeof y == 'number') {
+        offset += y * this.width; offset = offset << 2;
+    } else if (!(typeof offset == 'number')) {
+        offset = 0;
+    }
     for (var i = 0; i < array.length; i++) {
         this.data[offset+i] = Math.round(array[i]);
     }
 }
 
-/****
+/*
+@param x x coordinate relative to this imagedata area
+@param y y coordinate
+*/
+ImageData.prototype.read = function(x, y) {
+    if (x < 0 || y < 0 || x >= this.width || y >= this.height) { throw "Out of boundary."; }
+    var offset = (y*this.width + x) << 2;
+    return [this.data[offset], this.data[offset+1], this.data[offset+2], this.data[offset+3]];
+}
+
+/***************
 constants
-****/
+***************/
 
 //for Pw
 Pw.LOADMODE = { FILL: 1, FIT: 2, STRETCH: 3, TILE: 4, CENTER: 5, CENTERTILE: 6 };
@@ -136,9 +171,9 @@ Pw.BRIGHTNESS = { HSL: 1, AVERAGE: 2, HSV: 3, CIE: 4 };
 //for Pw.mix
 Pw.MIXMODE = { NORMAL: 1 };
 
-/****
+/***************
 general implementation
-****/
+***************/
 
 Pw.prototype._loadImg = function(img_obj, mode) {
     if (!img_obj.complete) { throw "Image not loaded yet."; }
@@ -178,9 +213,9 @@ Pw.prototype._loadImg = function(img_obj, mode) {
     }
 };
 
-/****
+/***************
 toolboxes
-****/
+***************/
 
 Pw.color = {};
 

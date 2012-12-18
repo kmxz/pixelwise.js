@@ -1,0 +1,26 @@
+<html>
+<head>
+<script>
+var p, cl, ca;
+var m;
+window.onload = function() {
+    p = new Pw(document.getElementById('cv'));
+    p.loadImg('0.jpg');
+    cl = new Pw(document.getElementById('cl'));
+    cl.loadImg('l.jpg', Pw.LOADMODE.STRETCH);
+    ca = new Pw(document.getElementById('ca'));
+    ca.loadImg('a.png', Pw.LOADMODE.STRETCH);
+    mf = new Pw.Mask(1, function(x,y){ return x>y ? 1 : 0; });
+    ma = new Pw.Mask(2, ca);
+    ml = new Pw.Mask(3, cl);
+}
+</script>
+<script src="../pixelwise.js"></script>
+<script src="../filters.js"></script>
+</head>
+<body>
+<canvas id="cv" width="180" height="120">WTF</canvas>
+<canvas id="cl" width="180" height="120">WTF</canvas>
+<canvas id="ca" width="180" height="120">WTF</canvas>
+</body>
+</html>
