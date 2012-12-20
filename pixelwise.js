@@ -87,7 +87,7 @@ Pw.prototype.applyNaiveFilter = function(filter, range) {
                 if (opa <= 0) { continue; } //not used
                 raw = this.ctx.getImageData(i, j, 1, 1).data; 
                 tdata = this.ctx.createImageData(1, 1);             
-                tdata.write(Pw.mix.mix(filter(raw), raw, opa, Pw.MIXMODE.NORMAL));
+                tdata.write(Pw.mix.mix(filter(raw), raw, opa, Pw.MIXMODE.REPLACE));
                 this.ctx.putImageData(tdata, i, j);
             }        
         }
@@ -106,20 +106,68 @@ Pw.prototype.applyNaiveFilter = function(filter, range) {
 }
 
 /*
-@param filter the passive full filter function to be applied (take a coordinate and a ImageData object)
-@param range the range to apply the filter on, can be a Pw.Mask object, or undefined for full canvas
-@param init initialization function
+@param matrix the matrix to be used
+@param oob_const_color the color used in non-used area, a 4-array
+@param oob_const_ratio the ratio of using color (other parts will be filled with mirror)
 */
-Pw.prototype.applyFullFilter = function(filter, range, init) {
+Pw.prototype.applyQuarterMatrixFilter = function(matrix, oob_const_color, oob_const_ratio, range) {
+    var w = matrix.length;
+    var h = matrix[0].length;
     var raw = this.ctx.getImageData(0, 0, this.w, this.h); 
     var tdata = this.ctx.getImageData(0, 0, this.w, this.h);
     var opa;
-    if (typeof init == 'function') { init(); }
+    var pixel_buf;
+    var temp;
+    var fail;
+    var total;
+    for (var x = 0; x < this.w; x++) {
+        for (var y = 0; y < this.h; y++) {
+            opa = range ? range.func(x, y) : 1;
+            if (opa <= 0) { continue; } //not used
+            pixel_buf = [0, 0, 0, 0];
+            for (var i = 0; i < w; i++) {
+                for (var j = 0; j < h; j++) {
+                    temp = [0, 0, 0, 0]; fail = 0; total = 0;
+                    for (var m = -1; m <= i && m <= 1; m += 2) {
+                        for (var n = -1; n <= j && n <= 1; n += 2) {
+                            //if(x==y) { console.log(x, y, m, n); }
+                            total++;
+                            try {
+                                Pw.vector.addTo(temp, raw.read(x + i * m, y + j * n));
+                            } catch (e) {
+                                if (e == "Out of boundary.") {
+                                    fail++;
+                                } else {
+                                    throw e;
+                                }
+                            }
+                        }
+                    }
+                    Pw.vector.multBy(temp, (total - fail * oob_const_ratio)/(total - fail));
+                    Pw.vector.addTo(temp, Pw.vector.mult(oob_const_color, oob_const_ratio * fail));
+                    Pw.vector.multBy(temp, matrix[i][j]);
+                    Pw.vector.addTo(pixel_buf, temp);
+                }
+            }
+            tdata.write(Pw.mix.mix(pixel_buf, raw.read(x,y), opa, Pw.MIXMODE.REPLACE), x, y);
+        }
+    }
+    this.ctx.putImageData(tdata, 0, 0);
+}
+
+/*
+@param filter the passive full filter function to be applied (take a coordinate and a ImageData object)
+@param range the range to apply the filter on, can be a Pw.Mask object, or undefined for full canvas
+*/
+Pw.prototype.applyFullFilter = function(filter, range) {
+    var raw = this.ctx.getImageData(0, 0, this.w, this.h); 
+    var tdata = this.ctx.getImageData(0, 0, this.w, this.h);
+    var opa;
     for (var i = 0; i < this.w; i++) {
         for (var j = 0; j < this.h; j++) {
             opa = range ? range.func(i, j) : 1;
             if (opa <= 0) { continue; }
-            tdata.write(Pw.mix.mix(filter(i, j, raw), raw.read(i,j), opa, Pw.MIXMODE.NORMAL), i, j);
+            tdata.write(Pw.mix.mix(filter(i, j, raw, ((j == 25) ? true : false)), raw.read(i,j), opa, Pw.MIXMODE.REPLACE), i, j);
         }        
     }
     this.ctx.putImageData(tdata, 0, 0);
@@ -169,7 +217,7 @@ Pw.MASKMODE = { FUNCTION: 1, ALPHA: 2, LUMINANCE: 3 };
 Pw.BRIGHTNESS = { HSL: 1, AVERAGE: 2, HSV: 3, CIE: 4 };
 
 //for Pw.mix
-Pw.MIXMODE = { NORMAL: 1 };
+Pw.MIXMODE = { REPLACEMENT: 1, VIEW: 2 };
 
 /***************
 general implementation
@@ -248,15 +296,44 @@ Pw.mix = {};
 @param mode the mixture mode
 */
 Pw.mix.mix = function(upper, lower, opacity, mode) {
-    var opa = opacity * upper[3] / 255;
     var ret = [];
     switch (mode) {
-        case Pw.MIXMODE.NORMAL:
-        default:
+        case Pw.MIXMODE.REPLACE:
+            for (var i = 0; i < 4; i++) {
+                ret[i] = upper[i]*opacity + (1-opacity)*lower[i];
+            }
+            return ret;
+        case Pw.MIXMODE.VIEW:
+            var opa = opacity * upper[3] / 255;
             for (var i = 0; i < 3; i++) {
                 ret[i] = upper[i]*opa + (1-opa)* lower[i];
             }
             ret[3] = (1-(1-opa)*(1-lower[3]/255))*255;
             return ret;
+        default:
+            throw "No such mix mode.";
+    }
+}
+
+Pw.vector = {};
+
+Pw.vector.addTo = function(vbase, vaddition) {
+    if (vbase.length < vaddition.length) { throw "Illegal addition"; }
+    for (var i = 0; i < vaddition.length; i++) {
+        vbase[i] += vaddition[i];
+    }
+}
+
+Pw.vector.mult = function(vbase, c) {
+    ret = [];
+    for (var i = 0; i < vbase.length; i++) {
+        ret[i] = vbase[i] * c;
+    }
+    return ret;
+}
+
+Pw.vector.multBy = function(vbase, c) {
+    for (var i = 0; i < vbase.length; i++) {
+        vbase[i] *= c;
     }
 }

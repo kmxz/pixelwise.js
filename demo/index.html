@@ -1,25 +1,47 @@
 <html>
 <head>
 <script>
-var p, cl, ca;
+var cl, ca, g;
+var p = [];
 var m;
 window.onload = function() {
-    p = new Pw(document.getElementById('cv'));
-    p.loadImg('0.jpg');
+    p[0] = new Pw(document.getElementById('cv0'));
+    p[0].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[1] = new Pw(document.getElementById('cv1'));
+    p[1].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[2] = new Pw(document.getElementById('cv2'));
+    p[2].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[3] = new Pw(document.getElementById('cv3'));
+    p[3].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
     cl = new Pw(document.getElementById('cl'));
     cl.loadImg('l.jpg', Pw.LOADMODE.STRETCH);
     ca = new Pw(document.getElementById('ca'));
     ca.loadImg('a.png', Pw.LOADMODE.STRETCH);
-    mf = new Pw.Mask(1, function(x,y){ return x>y ? 1 : 0; });
+    mf = new Pw.Mask(1, function(x,y){ return x/180; });
     ma = new Pw.Mask(2, ca);
     ml = new Pw.Mask(3, cl);
-}
+    var m1 = Pw.quad_matrix.gaussian(4);
+    var m2 = Pw.quad_matrix.gaussian(3);
+    var m3 = Pw.quad_matrix.gaussian(2);
+    var m4 = Pw.quad_matrix.gaussian(1);
+    var mm = [];
+    for (var i = 0; i < 13; i++) { mm[i] = []; for (var j = 0; j < 13; j++) { mm[i][j] = 0.0016; }};
+    setTimeout(function(){
+        p[0].applyQuarterMatrixFilter(m1, [0, 0, 0, 255], 0.5, mf);
+        p[1].applyQuarterMatrixFilter(m2, [0, 0, 0, 255], 0.5, mf);
+        p[2].applyQuarterMatrixFilter(m3, [0, 0, 0, 255], 0.5, mf);
+        p[3].applyQuarterMatrixFilter(m4, [0, 0, 0, 255], 0.5, mf);
+    }, 240);
+};
 </script>
 <script src="../pixelwise.js"></script>
 <script src="../filters.js"></script>
 </head>
 <body>
-<canvas id="cv" width="180" height="120">WTF</canvas>
+<canvas id="cv0" width="180" height="120">WTF</canvas>
+<canvas id="cv1" width="180" height="120">WTF</canvas>
+<canvas id="cv2" width="180" height="120">WTF</canvas>
+<canvas id="cv3" width="180" height="120">WTF</canvas>
 <canvas id="cl" width="180" height="120">WTF</canvas>
 <canvas id="ca" width="180" height="120">WTF</canvas>
 </body>

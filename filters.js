@@ -1,33 +1,37 @@
+Pw.filters = {};
+
 /***************
 sample naive filters
 
 taking an [r, g, b, a] array, each ranging from [0, 255].
 ***************/
 
-function dummy_naive(pixel) {
-    return [pixel[0], pixel[1], pixel[2], pixel[3]];
+Pw.filters.dummy = function(pixel) {
+    return pixel;
 }
 
-function monochrome(pixel) {
+Pw.filters.monochrome = function(pixel) {
     var l = Pw.color.brightness(pixel, Pw.BRIGHTNESS.CIE);
     return [l, l, l, pixel[3]];
 }
 
-function inverse(pixel) {
+Pw.filters.inverse = function(pixel) {
     return [255 - pixel[0], 255 - pixel[1], 255 - pixel[2], pixel[3]];
 }
 
-function black(pixel) {
+Pw.filters.black = function(pixel) {
     return [0, 0, 0, pixel[3]];
 }
 
-function white(pixel) {
+Pw.filters.white = function(pixel) {
     return [255, 255, 255, pixel[3]];
 }
 
-function threshold(pixel) {
-    return Pw.color.brightness(pixel, Pw.BRIGHTNESS.LUMINANCE) > 127 ? black(pixel) : white(pixel);
+Pw.filters.threshold = function(pixel) {
+    return Pw.color.brightness(pixel, Pw.BRIGHTNESS.LUMINANCE) > Pw.filters.threshold_value ? black(pixel) : white(pixel);
 }
+
+Pw.filters.threshold_value = 127;
 
 /**************
 passive full filters
@@ -35,32 +39,34 @@ passive full filters
 this kind of filter will take information from the whole image when working. however, they're passively called each time for each pixel. also, returning one single pixel is expected
 **************/
 
-function dummy_passive(x, y, ido) {
-    return ido.read(x, y);
+Pw.filters.non_even_stretch = function(x, y, ido, dbg) {
+    var temp = ido.read(ido.width/2+((x > ido.width/2) ? 1 : -1)*Math.sqrt(Math.abs(x - ido.width/2)/(ido.width/2))*(ido.width/2), y);
+    return temp;
 }
 
-var gaussian_blur_cache = [];
-var gaussian_current_radius;
+/**************
+quarter matrix filters
 
-function gaussianBlurInit(radius) {
-    if (radius * 3 == gaussian_current_radius) { return; } else { gaussian_blur_cache = []; gaussian_current_radius = radius * 3; }
-    var coef = 1/(2*radius*radius);
-    var mult = coef/Math.PI;
-    for (var i = 0; i < gaussian_current_radius; i++) {
-        gaussian_blur_cache[i] = [];
-        for (var j = 0; j < gaussian_current_radius; j++) {
-            gaussian_blur_cache[i][j] = mult * Math.exp(-(i*i+j*j)*coef);
+return a quadrand of the convolve matrix (including the axis)
+**************/
+
+Pw.quad_matrix = [];
+
+Pw.quad_matrix.gaussian = function(sigma) {
+    var ret = [];
+    var coef = 1/(2*sigma*sigma);
+    var cal_rad = sigma * 3;
+    var total = 0;
+    for (var i = 0; i < cal_rad; i++) {
+        ret[i] = [];
+        for (var j = 0; j < cal_rad; j++) {
+            ret[i][j] = Math.exp(-(i*i+j*j)*coef);
+            total += (i ? 2 : 1)*(j ? 2 : 1) * ret[i][j];
         }
     }
-}
-
-function gaussianBlurNoFill(x, y, ido) {
-    var ret = [0, 0, 0, 0];
-    var total_weight = 0;
-    var fetch = function(dx, dy) {
-        for (var i = -gaussian_current_radius + 1; i < gaussian_current_radius; i++) {
-            
-        }
+    total = 1/total;
+    for (var i = 0; i < cal_rad; i++) {
+        Pw.vector.multBy(ret[i], total);
     }
-    //"Out of boundary."
+    return ret;
 }
