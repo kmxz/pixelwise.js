@@ -4,20 +4,21 @@
 var cl, ca, g;
 var p = [];
 var m;
+var last_step;
 window.onload = function() {
     p[0] = new Pw(document.getElementById('cv0'));
-    p[0].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[0].loadImg('1.jpg', Pw.LOADMODE.FILL);
     p[1] = new Pw(document.getElementById('cv1'));
-    p[1].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[1].loadImg('1.jpg', Pw.LOADMODE.FILL);
     p[2] = new Pw(document.getElementById('cv2'));
-    p[2].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[2].loadImg('1.jpg', Pw.LOADMODE.FILL);
     p[3] = new Pw(document.getElementById('cv3'));
-    p[3].loadImg('0.jpg', Pw.LOADMODE.STRETCH);
+    p[3].loadImg('1.jpg', Pw.LOADMODE.FILL);
     cl = new Pw(document.getElementById('cl'));
     cl.loadImg('l.jpg', Pw.LOADMODE.STRETCH);
     ca = new Pw(document.getElementById('ca'));
     ca.loadImg('a.png', Pw.LOADMODE.STRETCH);
-    mf = new Pw.Mask(1, function(x,y){ return x/180; });
+    mf = new Pw.Mask(1, function(x,y){ return x > y ? 1 : 0; });
     ma = new Pw.Mask(2, ca);
     ml = new Pw.Mask(3, cl);
     var m1 = Pw.quad_matrix.gaussian(4);
@@ -27,22 +28,30 @@ window.onload = function() {
     var mm = [];
     for (var i = 0; i < 13; i++) { mm[i] = []; for (var j = 0; j < 13; j++) { mm[i][j] = 0.0016; }};
     setTimeout(function(){
-        p[0].applyQuarterMatrixFilter(m1, [0, 0, 0, 255], 0.5, mf);
-        p[1].applyQuarterMatrixFilter(m2, [0, 0, 0, 255], 0.5, mf);
-        p[2].applyQuarterMatrixFilter(m3, [0, 0, 0, 255], 0.5, mf);
-        p[3].applyQuarterMatrixFilter(m4, [0, 0, 0, 255], 0.5, mf);
+        var pc = function(p) {
+            var num = Math.floor(p*100);
+            if (num % 5 || last_step == num) { return; }
+            last_step = num;
+            console.log( 'Blur: ' + num + '%' );
+        }
+        p[0].applyQuarterMatrixFilter(m1, [0, 0, 0, 255], 0.5, ml, pc);
+        p[1].applyQuarterMatrixFilter(m2, [0, 0, 0, 255], 0.5, ml, pc);
+        p[2].applyQuarterMatrixFilter(m3, [0, 0, 0, 255], 0.5, ml, pc);
+        p[3].applyQuarterMatrixFilter(m4, [0, 0, 0, 255], 0.5, ml, pc);
     }, 240);
+    var d = document.getElementById("prog");
 };
 </script>
 <script src="../pixelwise.js"></script>
 <script src="../filters.js"></script>
 </head>
 <body>
-<canvas id="cv0" width="180" height="120">WTF</canvas>
-<canvas id="cv1" width="180" height="120">WTF</canvas>
-<canvas id="cv2" width="180" height="120">WTF</canvas>
-<canvas id="cv3" width="180" height="120">WTF</canvas>
-<canvas id="cl" width="180" height="120">WTF</canvas>
-<canvas id="ca" width="180" height="120">WTF</canvas>
+<div id="prog"></div>
+<canvas id="cv0" width="360"  height="240">WTF</canvas>
+<canvas id="cv1" width="360"  height="240">WTF</canvas>
+<canvas id="cv2" width="360"  height="240">WTF</canvas>
+<canvas id="cv3" width="360"  height="240">WTF</canvas>
+<canvas id="cl" width="360"  height="240">WTF</canvas>
+<canvas id="ca" width="360"  height="240">WTF</canvas>
 </body>
 </html>

@@ -110,7 +110,7 @@ Pw.prototype.applyNaiveFilter = function(filter, range) {
 @param oob_const_color the color used in non-used area, a 4-array
 @param oob_const_ratio the ratio of using color (other parts will be filled with mirror)
 */
-Pw.prototype.applyQuarterMatrixFilter = function(matrix, oob_const_color, oob_const_ratio, range) {
+Pw.prototype.applyQuarterMatrixFilter = function(matrix, oob_const_color, oob_const_ratio, range, progress_callback) {
     var w = matrix.length;
     var h = matrix[0].length;
     var raw = this.ctx.getImageData(0, 0, this.w, this.h); 
@@ -130,7 +130,6 @@ Pw.prototype.applyQuarterMatrixFilter = function(matrix, oob_const_color, oob_co
                     temp = [0, 0, 0, 0]; fail = 0; total = 0;
                     for (var m = -1; m <= i && m <= 1; m += 2) {
                         for (var n = -1; n <= j && n <= 1; n += 2) {
-                            //if(x==y) { console.log(x, y, m, n); }
                             total++;
                             try {
                                 Pw.vector.addTo(temp, raw.read(x + i * m, y + j * n));
@@ -151,8 +150,10 @@ Pw.prototype.applyQuarterMatrixFilter = function(matrix, oob_const_color, oob_co
             }
             tdata.write(Pw.mix.mix(pixel_buf, raw.read(x,y), opa, Pw.MIXMODE.REPLACE), x, y);
         }
+        progress_callback(x/this.w);
     }
     this.ctx.putImageData(tdata, 0, 0);
+    progress_callback(1);
 }
 
 /*
